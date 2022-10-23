@@ -1,0 +1,128 @@
+#include <Classes.hpp>
+#include <Controls.hpp>
+#include <StdCtrls.hpp>
+#include <Forms.hpp>
+#include <windows.h>
+#include <ExtCtrls.hpp>
+#include <GL\gl.h>
+#include <GL\glu.h>
+#include <math.h>
+#include "main.h"
+#include "materials.h"
+
+#define SCREEN_DEPTH 32									// We want 16 bits per pixel
+
+
+HGLRC hGLRC;
+HDC   hDC;
+//GLfloat lposition[] = {0, 0, 10, 1}, ldirection[] = {0, 0, 0};
+//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+void InitGL(HDC Handle, int X, int Y, int W, int H)
+{
+
+   hDC = GetDC(Handle);
+   /*
+   int PixelFormat;
+   PIXELFORMATDESCRIPTOR pfd =
+   {sizeof(PIXELFORMATDESCRIPTOR), 1,
+      PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+      PFD_TYPE_RGBA, 24, 0,0,0,0,0,0, 0,0, 0,0,0,0,0, 32, 0,
+      0, PFD_MAIN_PLANE, 0, 0,0,};*/
+
+   PIXELFORMATDESCRIPTOR pfd = {0}; 
+    int PixelFormat;
+ 
+    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);			// Set the size of the structure
+    pfd.nVersion = 1;									// Always set this to 1
+														// Pass in the appropriate OpenGL flags
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER; 
+    pfd.dwLayerMask = PFD_MAIN_PLANE;					// We want the standard mask (this is ignored anyway)
+    pfd.iPixelType = PFD_TYPE_RGBA;						// We want RGB and Alpha pixel type
+    pfd.cColorBits = SCREEN_DEPTH;						// Here we use our #define for the color bits
+    pfd.cDepthBits = SCREEN_DEPTH;						// Depthbits is ignored for RGBA, but we do it anyway
+    pfd.cAccumBits = 0;									// No special bitplanes needed
+    pfd.cStencilBits = 0;								// We desire no stencil bits
+
+
+   PixelFormat = ChoosePixelFormat (hDC, &pfd);
+   if (SetPixelFormat (hDC, PixelFormat, &pfd) == FALSE)
+      Application->Terminate ();
+
+   hGLRC = wglCreateContext(hDC);
+   if(hGLRC == NULL) Application->Terminate ();
+   if(wglMakeCurrent(hDC, hGLRC) == false) Application->Terminate ();
+
+
+   glEnable (GL_DEPTH_TEST);
+   glEnable (GL_NORMALIZE);
+   glEnable (GL_COLOR_MATERIAL);
+
+   LightON();
+   Light(0);
+   SetMaterial();
+
+   glViewport (0, 0, 1024, 768);
+
+   glShadeModel (GL_SMOOTH);
+   glClearColor (0, 0, 0, 1);
+
+   glMatrixMode (GL_PROJECTION);
+   glLoadIdentity ();
+   gluPerspective (90, GLdouble(W/H), 1.0, 4000.0);
+   //gluPerspective(45.0f,(GLfloat)1024/(GLfloat)768, 1 ,4000.0f);
+
+   glMatrixMode (GL_MODELVIEW);
+   glLoadIdentity ();
+   gluLookAt (0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+
+}
+//---------------------------------------------------------------------------
+void RezGL(int X, int Y, int W, int H)
+{
+   glViewport (X, Y, X+W, Y+H);
+
+   glMatrixMode (GL_PROJECTION);
+   glLoadIdentity ();
+   //gluPerspective(45.0f,(GLfloat)1024/(GLfloat)768, 1 ,4000.0f);
+   gluPerspective (90, GLdouble(W/H), 1.0, 4000.0);
+   glMatrixMode (GL_MODELVIEW);
+
+}
+//---------------------------------------------------------------------------
+
+void ChangeToFullScreen()
+{
+	DEVMODE dmSettings;									// Device Mode variable
+
+	memset(&dmSettings,0,sizeof(dmSettings));			// Makes Sure Memory's Cleared
+
+	// Get current settings -- This function fills our the settings
+	// This makes sure NT and Win98 machines change correctly
+	if(!EnumDisplaySettings(NULL,ENUM_CURRENT_SETTINGS,&dmSettings))
+	{
+		// Display error message if we couldn't get display settings
+		MessageBox(NULL, "Could Not Enum Display Settings", "Error", MB_OK);
+		return;
+	}
+
+	dmSettings.dmPelsWidth	= 1024; //SCREEN_WIDTH;				// Selected Screen Width
+	dmSettings.dmPelsHeight	= 768; //SCREEN_HEIGHT;			// Selected Screen Height
+	dmSettings.dmFields     = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+	// This function actually changes the screen to full screen
+	// CDS_FULLSCREEN Gets Rid Of Start Bar.
+	// We always want to get a result from this function to check if we failed
+	int result = ChangeDisplaySettings(&dmSettings,CDS_FULLSCREEN);
+
+	// Check if we didn't recieved a good return message From the function
+	if(result != DISP_CHANGE_SUCCESSFUL)
+	{
+		// Display the error message and quit the program
+		MessageBox(NULL, "Display Mode Not Compatible", "Error", MB_OK);
+		PostQuitMessage(0);
+	}
+}
+
+//---------------------------------------------------------------------------
+
